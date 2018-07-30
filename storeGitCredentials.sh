@@ -72,10 +72,10 @@ function setUserInfo(){
 function main(){
 	case "$operation" in
 		"store")
-			if [ -z $urlWithCredentials ]; then
-				$(store 0)
+			if [ -z "$urlWithCredentials" ]; then
+				store 0
 			else
-				$(store 1)
+				store 1
 			fi
 			;;
 		"erase")
