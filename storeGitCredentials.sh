@@ -32,11 +32,11 @@ function store(){
 
 	if [ $haveCredentials -eq 1 ]; then
 		if [ $(cat $credentalFile | grep -c "$urlWithCredentials") -le 0 ]; then
-			echo "$urlWithCredentials" | tee -a $credentalFile
+			echo "$urlWithCredentials" | tee -a $credentalFile /dev/null
 		fi
 	else
 		if [ ! -f $credentalFile ]; then
-			echo "" | tee $credentalFile
+			echo "" | tee $credentalFile > /dev/null
 		fi
 	fi
 
