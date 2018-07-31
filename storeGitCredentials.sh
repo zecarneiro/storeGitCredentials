@@ -2,14 +2,18 @@
 
 # Global variable
 home="$(echo $HOME)"
-gitConfig="$home/.gitconfig"
 operation="$1"
-urlWithCredentials="$2"
-credentalFile="$home/.git-credentials"
+option="$2"
 
-# User Info
+# Files
+credentalFile="$home/.git-credentials"
+gitConfig="$home/.gitconfig"
 fileToSaveInfo="$home/.gitUserInfo"
-infoOperation="$2"
+
+# Store
+urlWithCredentials="$3"
+
+# Info
 user="$3"
 email="$4"
 
@@ -68,37 +72,25 @@ function isStoreSet(){
 function store(){
 	local -i haveCredentials=$1
 	
+	# Set store on git
 	if [ $(isStoreSet) -eq 0 ]; then
 		git config --global credential.helper "store --file $credentalFile"
 	fi
 
-	if [ $haveCredentials -eq 1 ]; then
-		if [ $(cat $credentalFile | grep -c "$urlWithCredentials") -le 0 ]; then
-			echo "$urlWithCredentials" | tee -a $credentalFile /dev/null
-		fi
-	else
-		if [ $(isFileDirExist 1 "$credentalFile") -eq 0 ]; then
-			echo "" | tee $credentalFile > /dev/null
-		fi
+	# Create file to save credentials
+	if [ $(isFileDirExist 1 "$credentalFile") -eq 0 ]; then
+		touch $credentalFile
 	fi
 
-	showMessage
-}
-
-# Erase Credential and disable store
-function erase(){
-	git config --global --unset credential.helper
-
-	# Unset old user info
-	git config --global --unset user.name
-	git config --global --unset user.email
-	
-	if [ $(isFileDirExist 1 "$credentalFile") -eq 1 ]; then
-		rm $credentalFile
-	fi
-
-	if [ $(isFileDirExist 1 "$fileToSaveInfo") -eq 1 ]; then
-		rm $fileToSaveInfo
+	# Save credential on credentials file
+	if [ "$option" = "-u" ]; then
+		if [ ! -z $urlWithCredentials ]; then
+			if [ $(cat $credentalFile | grep -c "$urlWithCredentials") -le 0 ]; then
+				echo "$urlWithCredentials" | tee -a $credentalFile > /dev/null
+			fi
+		else
+			echo "Invalid URL"
+		fi
 	fi
 
 	showMessage
@@ -197,24 +189,31 @@ function setUserInfo(){
 	local -i infoSeleted
 	local -i isToSet=0
 
-	if [ -z "$user" ]&&[ -z "$email" ]; then
-		if [ "$infoOperation" = "-l" ]; then
-			getUserInfo 1
-		else
-			infoSeleted=$(getUserInfo 0)
+	# Change profile
+	if [ -z $option ]||[ "$option" = "-p" ]; then
+		infoSeleted=$(getUserInfo 0)
 
-			if [ $infoSeleted -ne -1 ]; then
-				user=$(cat $fileToSaveInfo | grep "name$infoSeleted" | cut -d ':' -f2)
-				email=$(cat $fileToSaveInfo | grep "email$infoSeleted" | cut -d ':' -f2)
-				isToSet=1
-			fi
+		if [ $infoSeleted -ne -1 ]; then
+			user=$(cat $fileToSaveInfo | grep "name$infoSeleted" | cut -d ':' -f2)
+			email=$(cat $fileToSaveInfo | grep "email$infoSeleted" | cut -d ':' -f2)
+			isToSet=1
 		fi
-	else
+
+	# List of saved profile
+	elif [ "$option" = "-l" ]; then
+		getUserInfo 1
+
+	# Set/Save info
+	elif [ "$option" = "-o" ]||[ "$option" = "-s" ]||[ "$option" = "-S" ]; then
 		if [ -z "$user" ]||[ -z "$email" ]; then
 			echo "user and email is not set"
 		else
-			isToSet=1
-			if [ ! -z "$infoOperation" ]&&[ "$infoOperation" = "-s" ]; then
+			if [ "$option" != "-S" ]; then
+				isToSet=1
+			fi
+
+			# Save Info
+			if [ "$option" = "-s" ]||[ "$option" = "-S" ]; then
 				saveUserInfo
 			fi
 		fi
@@ -233,28 +232,63 @@ function setUserInfo(){
 	showMessage
 }
 
+# Erase Credential and disable store
+function erase(){
+	git config --global --unset credential.helper
+
+	# Unset old user info
+	git config --global --unset user.name
+	git config --global --unset user.email
+	
+	if [ $(isFileDirExist 1 "$credentalFile") -eq 1 ]; then
+		rm $credentalFile
+	fi
+
+	if [ $(isFileDirExist 1 "$fileToSaveInfo") -eq 1 ]; then
+		rm $fileToSaveInfo
+	fi
+
+	showMessage
+}
+
 # Main
 function main(){
 	case "$operation" in
 		"store")
-			if [ -z "$urlWithCredentials" ]; then
-				store 0
-			else
-				store 1
-			fi
+			store
+			;;
+		"info")
+			setUserInfo
 			;;
 		"erase")
 			erase
 			;;
-		"setInfo")
-			setUserInfo
-			;;
 		*)
-			echo "$0 (store | erase) URL-CREDENTIAL(OPTIONAL)"
-			echo "Example: $0 store https://username:password@mydomain.xxx (mydomain.xxx : gitlab.com or other"
+			
+			echo "$0 (store | erase | info) option"
 			echo
-			echo "$0 setInfo user email option"
-			echo "option: -s = save info"
+			echo "### Store ###"
+			echo "Option(OPTIONAL):"
+			echo "	-u: Include url with credentials."
+			echo "			Example: $0 store -u https://username:password@mydomain.xxx (mydomain.xxx : gitlab.com or other)"
+			echo
+			echo "### Info ###"
+			echo "Option:"
+			echo "	-s: = set and save info"
+			echo "			Example: $0 info -s user email"
+			echo "	-S: = only save info"
+			echo "			Example: $0 info -S user email"
+			echo "	-o: = only set info"
+			echo "			Example: $0 info -o user email"
+			echo "	-l: = list of saved info"
+			echo "			Example: $0 info -l"
+			echo "	-p: = change profile on git with list of saved info"
+			echo "			Example: $0 info -p"
+			echo
+			echo "### Erase ###"
+			echo "Without option"
+			echo
+			echo "Argument 6 or greater will be ignored"
 			;;
 	esac
 	exitScript
