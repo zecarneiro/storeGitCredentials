@@ -1,2 +1,2 @@
 # storeGitCredentials
-tt0
+tt
