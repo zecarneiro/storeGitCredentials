@@ -1,2 +1,1 @@
 # storeGitCredentials
-teste
